@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230e1420'/%3E%3Cpath d='M16 6c3 5 6 7 6 12a6 6 0 1 1-12 0c0-3 2-5 3-7 1 2 2 3 3 3-1-3 0-6 0-8z' fill='%23ff8a1e'/%3E%3C/svg%3E"
+    />
+    <title>燃气灶具 3D 仿真教学系统</title>
+  </head>
+  <body>
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="loading-box">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在初始化 3D 场景…</div>
+        <div class="loading-progress"><div id="loading-bar" class="loading-bar"></div></div>
+      </div>
+    </div>
+
+    <!-- 3D 画布挂载点 -->
+    <div id="app"></div>
+
+    <!-- 顶部标题栏 -->
+    <header class="top-bar">
+      <div class="top-title">
+        <span class="logo-dot"></span>
+        燃气灶具 3D 仿真教学系统
+      </div>
+      <div id="stage-banner" class="stage-banner hidden"></div>
+    </header>
+
+    <!-- 零件标注卡片（由 JS 控制显隐与定位） -->
+    <div id="annotation-card" class="annotation-card hidden">
+      <button id="annotation-close" class="annotation-close" title="关闭">×</button>
+      <h3 id="annotation-title">零件名称</h3>
+      <p id="annotation-desc">原理介绍</p>
+    </div>
+
+    <!-- 侧边控制面板（静态结构，事件由 ui/ControlPanel.js 绑定） -->
+    <aside id="control-panel" class="control-panel">
+      <section class="panel-section">
+        <h2 class="panel-heading">运行模式</h2>
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="manual">手动操作</button>
+          <button class="mode-btn" data-mode="auto">自动演示</button>
+        </div>
+      </section>
+
+      <section class="panel-section" id="manual-section">
+        <h2 class="panel-heading">手动控制</h2>
+
+        <div class="burner-block">
+          <div class="burner-head">
+            <span class="burner-name">左灶</span>
+            <span class="burner-state" id="left-state">关闭</span>
+          </div>
+          <div class="burner-controls">
+            <button class="btn btn-primary" id="left-ignite">点火 / 关火</button>
+            <label class="slider-label">
+              火力
+              <input type="range" id="left-power" min="0" max="100" value="60" />
+              <span id="left-power-val">60%</span>
+            </label>
+            <button class="btn btn-warn" id="left-flameout">模拟意外熄火</button>
+          </div>
+        </div>
+
+        <div class="burner-block">
+          <div class="burner-head">
+            <span class="burner-name">右灶</span>
+            <span class="burner-state" id="right-state">关闭</span>
+          </div>
+          <div class="burner-controls">
+            <button class="btn btn-primary" id="right-ignite">点火 / 关火</button>
+            <label class="slider-label">
+              火力
+              <input type="range" id="right-power" min="0" max="100" value="60" />
+              <span id="right-power-val">60%</span>
+            </label>
+            <button class="btn btn-warn" id="right-flameout">模拟意外熄火</button>
+          </div>
+        </div>
+
+        <div class="valve-row">
+          <label class="switch-label">
+            <input type="checkbox" id="main-valve" checked />
+            <span>燃气总阀（通气）</span>
+          </label>
+        </div>
+        <p class="panel-tip">提示：也可以直接在 3D 场景中点击旋钮点火。</p>
+      </section>
+
+      <section class="panel-section disabled-section" id="auto-section">
+        <h2 class="panel-heading">自动演示</h2>
+        <p class="panel-tip">完整流程：通气 → 旋钮打开 → 点火 → 正常燃烧 → 意外熄火 → 热电偶断气保护</p>
+        <div class="demo-progress">
+          <div id="demo-progress-bar" class="demo-progress-bar"></div>
+        </div>
+        <div class="demo-buttons">
+          <button class="btn btn-primary" id="demo-play">▶ 播放演示</button>
+          <button class="btn" id="demo-stop">■ 停止复位</button>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="panel-heading">剖切透视</h2>
+        <label class="slider-label">
+          剖切深度
+          <input type="range" id="clip-slider" min="0" max="100" value="0" />
+          <span id="clip-val">0%</span>
+        </label>
+        <div class="axis-switch">
+          <span class="axis-label">剖切方向</span>
+          <button class="axis-btn active" data-axis="x">X</button>
+          <button class="axis-btn" data-axis="y">Y</button>
+          <button class="axis-btn" data-axis="z">Z</button>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="panel-heading">视图与模型</h2>
+        <label class="switch-label">
+          <input type="checkbox" id="auto-rotate" />
+          <span>自动旋转</span>
+        </label>
+        <button class="btn btn-block" id="reset-view">重置视角</button>
+        <div class="model-load">
+          <label class="slider-label" for="glb-url">网络 GLB 模型地址</label>
+          <input type="text" id="glb-url" class="text-input"
+            placeholder="https://example.com/stove.glb" />
+          <button class="btn btn-block" id="load-glb">加载 GLB 模型</button>
+          <button class="btn btn-block" id="restore-procedural">恢复内置教学模型</button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- 底部状态栏 -->
+    <footer class="status-bar">
+      <span id="status-text">就绪：拖拽旋转 · 滚轮缩放 · 点击零件查看原理</span>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
